@@ -10,8 +10,6 @@ class Collector extends Actor with ActorLogging {
   val startTime = currentTimeMillis
   var found = List[Article]()
 
-  log.info(s"Collector path is ${self.path}")
-
   def receive = {
     case article: Article => {
       if(found.contains(article)) {

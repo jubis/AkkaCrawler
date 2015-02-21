@@ -73,7 +73,7 @@ class Finder extends Actor with ActorLogging with Stash {
    */
   val fullRecieve: Receive = {
 
-    case Link(pageUrl) => {
+    case pageUrl: String => {
 
       val start = currentTimeMillis
 
@@ -84,9 +84,9 @@ class Finder extends Actor with ActorLogging with Stash {
 
       collector ! Article(header)
 
-      findLinks(content).zip(constant(header)).foreach {
-        case (link, header) => {
-          hub ! Link(link)
+      findLinks(content).foreach {
+        case url: String => {
+          hub ! Link(url)
         }
       }
 
