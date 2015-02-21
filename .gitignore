@@ -1,3 +1,5 @@
 .idea
 target
 activator*
+project/project
+project/target
