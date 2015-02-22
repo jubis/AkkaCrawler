@@ -11,6 +11,7 @@ class Collector extends Actor with ActorLogging {
   var found = List[Article]()
 
   def receive = {
+
     case article: Article => {
       if(found.contains(article)) {
         log.info(s"Received old article")
@@ -23,6 +24,7 @@ class Collector extends Actor with ActorLogging {
         log.info(s"Avg velocity $velocity")
       }
     }
+
   }
 
 }

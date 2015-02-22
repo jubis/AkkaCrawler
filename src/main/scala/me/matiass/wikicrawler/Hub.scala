@@ -12,7 +12,8 @@ class Hub extends Actor with ActorLogging {
 
   /**
    * This is what makes the difference.
-   * Notice that one Finder executes one article at a time - and that's the whole point!
+   * Notice that one Finder executes one article at a time so this determines the concurrent amount of
+   * articles being loaded and parsed.
    */
   val finderAmount = 10
 

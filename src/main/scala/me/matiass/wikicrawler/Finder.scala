@@ -20,9 +20,6 @@ class Finder extends Actor with ActorLogging with Stash {
 
   findCollector()
 
-  /**
-   * Tries to find the Collector and tells it to self.
-   */
   def findCollector() = {
     context.system.actorSelection("user/collector").resolveOne.onComplete{
       case Success(result) => {
@@ -33,7 +30,8 @@ class Finder extends Actor with ActorLogging with Stash {
   }
 
   /**
-   * This is blocking so that Finder can execute one search at a time.
+   * This is blocking so that Finder would execute one search at a time.
+   * TODO: Remove blocking and implement a queue for links to be handled.
    */
   def loadPage(pageUrl: String) = {
     val future = Http(url(pageUrl) OK as.String)
@@ -50,7 +48,7 @@ class Finder extends Actor with ActorLogging with Stash {
 
   /**
    * Initial Receive to wait until Collector has been found
-   * Stashes all messages for later handling.
+   * Stashes all messages to be handled when Collector is ready.
    */
   def receive = {
 
@@ -64,7 +62,6 @@ class Finder extends Actor with ActorLogging with Stash {
     case _ => {
       log.info("Stashing message")
       stash()
-      //Thread.sleep(1000) //Hack to prevent the SmallestMailboxRouter sending all messages to this
     }
   }
 
