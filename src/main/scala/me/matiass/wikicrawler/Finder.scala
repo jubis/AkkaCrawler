@@ -1,22 +1,33 @@
 package me.matiass.wikicrawler
 
+import java.lang.System.currentTimeMillis
+
 import akka.actor._
 import akka.util.Timeout
 import dispatch.Defaults._
 import dispatch._
-
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.util.{Failure, Success}
-import java.lang.System.currentTimeMillis
+import me.matiass.wikicrawler.Finder.{Content, FoundPage, LoadPage}
 import me.matiass.wikicrawler.Messages._
 import me.matiass.wikicrawler.WikiUtils._
 
-class Finder extends Actor with ActorLogging with Stash {
+import scala.collection.immutable.Queue
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
+
+object Finder {
+  case class LoadPage(pageUrl: String)
+  case class FoundPage(content: Content, start: Long)
+  case class Content(value: String)
+
+  def props(hub: ActorRef) = Props(new Finder(hub))
+}
+
+class Finder(hub: ActorRef) extends Actor with ActorLogging with Stash {
 
   implicit val timeout = Timeout(10 seconds)
 
   var collector: ActorRef = null
+  var queue = Queue[String]()
 
   findCollector()
 
@@ -33,15 +44,32 @@ class Finder extends Actor with ActorLogging with Stash {
    * This is blocking so that Finder would execute one search at a time.
    * TODO: Remove blocking and implement a queue for links to be handled.
    */
-  def loadPage(pageUrl: String) = {
-    val future = Http(url(pageUrl) OK as.String)
-    try{
-      Await.result(future, 10 seconds)
-    }
-    catch {
-      case e: Throwable => {
-        log error s"Page load failed in ${self.path}"
+  def loadPage(pageUrl: String): Future[String] = {
+
+    val contentReq = Http(url(pageUrl) OK as.String).either
+
+    contentReq.map {
+      case Right(content) => content
+      case Left(err) => {
+        log.error(s"Page load failed ($pageUrl)")
         ""
+      }
+    }
+
+  }
+
+  /**
+   * Removes first (=current) url from the queue and returns the next one.
+   * Return left if queue is empty
+   */
+  def dequeue(): Option[String] = {
+    queue.dequeue match {
+      case (prevUrl, remainingQueue) => {
+        queue = remainingQueue
+        log.info(s"Dequeue $prevUrl. Queue lenght ${queue.length}")
+
+        if(queue.length > 0) Some(queue.front)
+        else None
       }
     }
   }
@@ -56,6 +84,7 @@ class Finder extends Actor with ActorLogging with Stash {
       log info "Got the collector - lets go!"
       collector = foundCollector
       context.become(fullRecieve, true)
+      hub ! Ready
       unstashAll()
     }
 
@@ -71,23 +100,42 @@ class Finder extends Actor with ActorLogging with Stash {
   val fullRecieve: Receive = {
 
     case pageUrl: String => {
+      if(queue.length > 0) {
+        log.info(s"To queue $pageUrl. Queue lenght ${queue.length}")
+      }
+      else {
+        log.info("No queue")
+        self ! LoadPage(pageUrl)
+      }
+      queue = queue enqueue pageUrl
+    }
+
+    case LoadPage(pageUrl) => {
 
       val start = currentTimeMillis
 
-      val hub = context.sender
+      for(
+        content <- loadPage(pageUrl)
+      ) self ! FoundPage(Content(content), start)
 
-      val content = loadPage(pageUrl)
-      val header = pickHeader(content)
+    }
+
+    case FoundPage(content, start) => {
+      for(
+        next <- dequeue()
+      ) self ! LoadPage(next)
+
+      val header = pickHeader(content.value)
+
+      val spent = currentTimeMillis - start
 
       collector ! Article(header)
 
-      findLinks(content).foreach {
-        case url: String => {
-          hub ! Link(url)
-        }
-      }
+      for(
+        url <- findLinks(content.value)
+      ) hub ! Link(url)
 
-      val spent = currentTimeMillis - start
+      hub ! Ready
 
       log.info(s"Spent $spent")
     }

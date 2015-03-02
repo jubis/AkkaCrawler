@@ -8,4 +8,6 @@ object Messages {
     def wikiUrl = s"http://en.wikipedia.org/wiki/$url"
   }
 
+  case class Ready()
+
 }
