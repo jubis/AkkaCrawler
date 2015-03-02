@@ -4,9 +4,10 @@ Akka Crawler project
 This project is for playing with Akka actors. It mostly demonstrates the ability of Actors to keep state in concurrent
 processing.
 
-Also works as a demo for resource handling with actors: it uses a router to spin a set amount of actors that execute
-one task at a time and thus enables the router to handle the amount of concurrent activity. Currently the actors block
-to prevent concurrent tasks but that is an anti-pattern and will be replaced with a queue inside the actor.
+Also works as a demo for resource handling with actors: it spins a set amount of actors that execute
+one task at a time and thus enables the handling of the amount of concurrent activity.
+This is implemented by the worker actors queuing the excess jobs and also the "hub" actor queuing the job until
+it has a free worker available. Of course the queue would be actually required only in one side - but this is a demo.
 
 What it does?
 -------------
