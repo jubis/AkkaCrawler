@@ -40,10 +40,6 @@ class Finder(hub: ActorRef) extends Actor with ActorLogging with Stash {
     }
   }
 
-  /**
-   * This is blocking so that Finder would execute one search at a time.
-   * TODO: Remove blocking and implement a queue for links to be handled.
-   */
   def loadPage(pageUrl: String): Future[String] = {
 
     val contentReq = Http(url(pageUrl) OK as.String).either
